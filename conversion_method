@@ -1,0 +1,137 @@
+1. Introduction
+
+This document describes a fully manual procedure designed to migrate virtual machines from Citrix XenServer 7.2 to VMware ESXi 6.7 in the absence of a direct conversion path.
+The method was developed through hands-on experimentation and provides a reliable, replicable approach for system administrators who must transfer workloads between incompatible hypervisors without losing data or functionality.
+
+2. Problem Overview
+
+XenServer and VMware ESXi use different disk formats and metadata structures.
+
+XenServer exports virtual machines in its own OVF flavor that cannot be directly imported into VMware.
+
+VMware tools such as vCenter Converter cannot natively interpret XenServer exports.
+As a result, administrators often face an apparent dead end when attempting to move legacy workloads.
+
+3. Solution Concept
+
+The solution involves creating a nested environment where XenServer is installed as a virtual machine inside VMware.
+This nested Xen environment acts as an intermediate bridge, allowing the exported Xen VMs to be imported into a compatible Xen instance and then converted using VMware tools as if they were physical machines.
+This process is known as a manual P2V (Physical-to-Virtual) conversion via a Nested Hypervisor Bridge.
+
+4. Architecture Overview
+Logical layout
+[ Source XenServer (France) ]
+            |
+            |  Export native OVF (Xen format)
+            v
+[ Nested XenServer VM ]  <-- running inside VMware ESXi 6.7
+            |
+    (Internal Virtual LAN)
+            |
+[ Windows 10 Control VM ]
+  - XenCenter
+  - VMware vCenter Converter Standalone
+            |
+            v
+[ VMware ESXi 6.7 Target Host (Germany) ]
+
+Description
+
+Source XenServer (France): Original environment containing production VMs.
+
+Nested XenServer VM: A replica Xen 7.2 installation hosted inside VMware ESXi 6.7.
+
+Internal Virtual LAN: Isolated virtual network connecting the nested Xen and Windows control VMs.
+
+Windows 10 Control VM: Equipped with XenCenter for managing the nested Xen, and VMware vCenter Converter for converting VMs via network.
+
+VMware ESXi Target (Germany): Destination platform for the converted machines.
+
+5. Tools Used
+
+Citrix XenCenter 7.2
+
+VMware vCenter Converter Standalone (latest at the time of test)
+
+Internal Virtual LAN (VMware virtual switches, isolated)
+
+Linux Rescue ISO (for post-conversion system corrections)
+
+WinSCP / SCP (for transferring small files and logs)
+
+6. Step-by-Step Procedure
+Step 1 – Prepare the Nested Environment
+
+On the VMware ESXi 6.7 host, create a new VM and install XenServer 7.2 as a nested hypervisor.
+
+Create a Windows 10 VM and connect both (Xen + Win10) to the same internal virtual LAN.
+
+Install XenCenter and vCenter Converter on Windows 10.
+
+Step 2 – Export from Source XenServer
+
+From the original XenServer (France), export each VM in native Xen OVF format.
+
+Transfer exported files to the nested XenServer using secure copy or shared storage.
+
+Step 3 – Import into Nested Xen
+
+In XenCenter (on Win10), import the OVF files into the nested XenServer VM.
+
+Verify that each imported VM starts correctly under the nested Xen environment.
+
+Step 4 – Convert Using VMware vCenter Converter
+
+On the Windows 10 Control VM, open vCenter Converter.
+
+Choose the P2V conversion mode and point it to the nested XenServer VM as the source.
+
+Configure each Xen VM as a network-accessible “physical” source.
+
+Select the target ESXi host and specify storage, CPU, and memory settings.
+
+Start the conversion and monitor progress.
+
+Step 5 – Post-Conversion Fixes
+
+For Linux guests:
+
+Boot from a Linux Rescue ISO.
+
+Mount the root partition manually.
+
+Edit /etc/fstab to replace old Xen device names (/dev/xvda, /dev/xvdb) with VMware equivalents (/dev/sda, /dev/sdb).
+
+Run update-initramfs -u if required.
+
+Reboot and verify proper boot.
+
+For Windows guests:
+
+Boot normally on VMware.
+
+Install VMware Tools.
+
+Remove any Xen-specific drivers or services.
+
+7. Results
+
+All migrated virtual machines were successfully started on VMware ESXi 6.7.
+
+No data loss occurred.
+
+The conversion worked for both Windows and Linux systems.
+
+Performance was equivalent to natively created VMware VMs after installation of VMware Tools.
+
+This process avoids the need for third-party migration suites or dual-stage conversions and is fully replicable with basic system administration skills.
+
+8. Conclusion
+
+This method provides a practical, low-cost solution for cross-hypervisor migration from XenServer to VMware, bridging an otherwise unsupported scenario.
+It demonstrates that a nested hypervisor bridge can serve as a universal intermediary between isolated virtualization platforms.
+
+9. Author
+
+Alessandro Giussani (2019)
+This is a contribution for those who need to move from Xen to VMware.
