@@ -20,7 +20,7 @@ This document was written as a contribution for system administrators who need t
 
 ## Files
 - `Cross-Hypervisor_Migration_AlexGiussani.pdf` – main document with technical diagram  
-- `Cross-Hypervisor_Migration_AlexGiussani.docx` – editable version  
+
 - `README.md` – this file  
 
 ## Author Note
